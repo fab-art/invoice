@@ -1,0 +1,126 @@
+:root {
+  --primary: #0b5d3b;
+  --primary-dark: #08432a;
+  --bg: #f4f6f5;
+  --card-bg: #ffffff;
+  --border: #dde3e0;
+  --text: #1c2b25;
+  --muted: #6b7a74;
+  --danger: #b3261e;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.app-main { flex: 1; padding: 1.5rem; max-width: 1100px; margin: 0 auto; width: 100%; }
+
+.navbar {
+  display: flex; align-items: center; gap: 1.5rem;
+  background: var(--primary); color: white; padding: 0.75rem 1.5rem;
+  flex-wrap: wrap;
+}
+.navbar-brand { font-weight: 600; }
+.navbar-links { display: flex; gap: 1rem; flex: 1; }
+.navbar-links a { color: rgba(255,255,255,0.85); text-decoration: none; padding: 0.25rem 0.5rem; border-radius: 4px; }
+.navbar-links a.active, .navbar-links a:hover { background: rgba(255,255,255,0.15); color: white; }
+.navbar-user { display: flex; align-items: center; gap: 0.75rem; font-size: 0.9rem; }
+
+.btn-primary, .btn-secondary, .btn-link {
+  cursor: pointer; border-radius: 6px; font-size: 0.95rem; padding: 0.5rem 1rem;
+}
+.btn-primary { background: var(--primary); color: white; border: none; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-secondary { background: white; border: 1px solid var(--border); color: var(--text); }
+.btn-link { background: none; border: none; color: var(--primary); text-decoration: underline; padding: 0.25rem 0.4rem; }
+
+input, textarea, select {
+  width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 0.75rem; font-size: 0.95rem; background: white; color: var(--text);
+}
+label { font-size: 0.85rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+
+.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.login-card { background: var(--card-bg); padding: 2rem; border-radius: 10px; width: 360px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.login-card h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+.subtitle { color: var(--muted); margin-top: 0; margin-bottom: 1rem; }
+.hint { font-size: 0.8rem; color: var(--muted); }
+
+.alert-error { background: #fdecea; color: var(--danger); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
+.alert-info { background: #e8f4ee; color: var(--primary-dark); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
+
+.reception-stats { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; min-width: 160px; }
+.stat-value { display: block; font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+.stat-label { font-size: 0.8rem; color: var(--muted); }
+
+.reception-form, .pharmacy-form { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+.form-row { display: flex; gap: 1rem; }
+.form-row > div { flex: 1; }
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem; }
+
+.pharmacy-search { position: relative; margin-bottom: 1rem; }
+.pharmacy-search-results {
+  position: absolute; z-index: 10; background: white; border: 1px solid var(--border); border-radius: 6px;
+  width: 100%; max-height: 240px; overflow-y: auto; list-style: none; margin: 0; padding: 0.25rem 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.pharmacy-search-results li { padding: 0.5rem 0.75rem; cursor: pointer; }
+.pharmacy-search-results li:hover { background: var(--bg); }
+.pharmacy-summary { font-size: 0.85rem; color: var(--muted); margin: -0.5rem 0 1rem; }
+
+.checklist { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.5rem; margin-bottom: 1rem; }
+.checklist-item { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: var(--text); }
+.checklist-item input { width: auto; margin: 0; }
+
+.data-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; }
+.data-table th, .data-table td { text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.data-table th { background: #eef3f0; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
+
+.status-badge { padding: 0.15rem 0.5rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.status-submitted { background: #fff4de; color: #8a5a00; }
+.status-under_review { background: #e6f0ff; color: #1450b3; }
+.status-verified { background: #e6f7e9; color: #1a7a34; }
+.status-rejected { background: #fdecea; color: var(--danger); }
+.status-paid { background: #e6f4f1; color: #0b5d3b; }
+
+.filter-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.chip { border: 1px solid var(--border); background: white; border-radius: 16px; padding: 0.3rem 0.9rem; cursor: pointer; font-size: 0.85rem; text-transform: capitalize; }
+.chip-active { background: var(--primary); color: white; border-color: var(--primary); }
+
+.actions-cell { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+.modal-card { background: white; border-radius: 10px; padding: 1.5rem; width: 340px; }
+
+.import-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.file-upload-btn { display: inline-block; }
+.table-search { margin-bottom: 1rem; }
+
+.report-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.report-header input[type="date"] { width: auto; margin-bottom: 0; }
+
+.loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; }
+
+.last-receipt-actions { background: #e6f7e9; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; }
+
+/* Print styles for the receipt */
+.receipt-print { font-family: 'Courier New', monospace; width: 320px; padding: 1rem; }
+.receipt-header { text-align: center; margin-bottom: 0.5rem; }
+.receipt-meta { width: 100%; font-size: 0.85rem; margin-bottom: 0.75rem; }
+.receipt-meta td { padding: 2px 0; }
+.receipt-meta td:first-child { color: #555; padding-right: 0.5rem; }
+.receipt-req-list { list-style: none; padding: 0; font-size: 0.85rem; }
+.receipt-notes { font-size: 0.8rem; }
+.receipt-footer { margin-top: 1rem; font-size: 0.8rem; }
+.receipt-signatures { display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1rem; }
+.receipt-disclaimer { font-size: 0.7rem; color: #555; margin-top: 1rem; }
+
+@media print {
+  .app-shell > *:not(.app-main) { display: none; }
+  body * { visibility: hidden; }
+  .receipt-print, .receipt-print * { visibility: visible; }
+  .receipt-print { position: absolute; top: 0; left: 0; }
+}
