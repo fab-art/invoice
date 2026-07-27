@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
-import { supabase } from '../lib/supabaseClient'
+import { listPharmacies, upsertPharmacy, bulkUpsertPharmacies, togglePharmacyActive } from '../lib/localDb'
 
 const emptyForm = { pharmacy_code: '', pharmacy_name: '', district: '', sector: '', contact_person: '', phone: '', email: '' }
 
@@ -14,19 +14,16 @@ export default function PharmacyManager() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    const { data } = await supabase.from('pharmacies').select('*').order('pharmacy_name')
-    setPharmacies(data || [])
+    setPharmacies(await listPharmacies())
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
-    if (editingId) {
-      const { error } = await supabase.from('pharmacies').update(form).eq('id', editingId)
-      if (error) setMessage(error.message)
-    } else {
-      const { error } = await supabase.from('pharmacies').insert(form)
-      if (error) setMessage(error.message)
+    try {
+      await upsertPharmacy(editingId ? { ...form, id: editingId } : form)
+    } catch (err) {
+      setMessage(err.message)
     }
     setForm(emptyForm)
     setEditingId(null)
@@ -39,7 +36,7 @@ export default function PharmacyManager() {
   }
 
   async function toggleActive(p) {
-    await supabase.from('pharmacies').update({ active: !p.active }).eq('id', p.id)
+    await togglePharmacyActive(p)
     load()
   }
 
@@ -64,8 +61,8 @@ export default function PharmacyManager() {
 
     if (rows.length === 0) { setMessage('No valid rows found in the file.'); return }
 
-    const { error } = await supabase.from('pharmacies').upsert(rows, { onConflict: 'pharmacy_code' })
-    setMessage(error ? error.message : `Imported ${rows.length} pharmacies.`)
+    const count = await bulkUpsertPharmacies(rows)
+    setMessage(`Imported ${count} pharmacies.`)
     load()
     e.target.value = ''
   }
