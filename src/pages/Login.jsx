@@ -23,6 +23,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
+        <img src="/rssb-logo.png" alt="RSSB - Rwanda Social Security Board" className="login-logo" />
         <h1>RSSB Pharmacy Invoice Reception</h1>
         <p className="subtitle">Sign in to continue</p>
         {error && <div className="alert-error">{error}</div>}
@@ -33,7 +34,11 @@ export default function Login() {
         <button className="btn-primary" disabled={busy} type="submit">
           {busy ? 'Signing in...' : 'Sign in'}
         </button>
-        <p className="hint">Accounts are created by an administrator via the Supabase dashboard or the Admin panel.</p>
+        <p className="hint">
+          Local demo mode — data is stored in this browser's IndexedDB.<br/>
+          Admin: <code>admin@rssb.local</code> / <code>admin123</code><br/>
+          Receptionist: <code>reception@rssb.local</code> / <code>reception123</code>
+        </p>
       </form>
     </div>
   )

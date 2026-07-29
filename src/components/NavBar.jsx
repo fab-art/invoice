@@ -6,7 +6,10 @@ export default function NavBar() {
 
   return (
     <header className="navbar">
-      <div className="navbar-brand">RSSB Invoice Reception</div>
+      <div className="navbar-brand">
+        <img src="/rssb-logo.png" alt="RSSB" className="navbar-logo" />
+        Invoice Reception
+      </div>
       <nav className="navbar-links">
         <NavLink to="/" end>Reception</NavLink>
         <NavLink to="/reports">Reports</NavLink>
