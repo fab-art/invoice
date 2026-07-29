@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext.jsx'
 import PharmacySearch from '../components/PharmacySearch.jsx'
 import Receipt from '../components/Receipt.jsx'
+import {
+  listPharmacies, getActivePeriod, createSubmission,
+  countSubmissionsSince, getRemainingPharmacyCount,
+} from '../lib/localDb'
 
 const REQUIREMENTS = [
   { key: 'req_signed_vouchers', label: 'Signed vouchers' },
@@ -31,37 +34,26 @@ export default function Reception() {
 
   const handlePrint = useReactToPrint({ contentRef: printRef })
 
-  useEffect(() => {
-    loadPharmacies()
-    loadActivePeriod()
-    loadTodayCount()
-  }, [])
+  useEffect(() => { loadAll() }, [])
 
-  async function loadPharmacies() {
-    const { data } = await supabase.from('pharmacies').select('*').eq('active', true).order('pharmacy_name')
-    setPharmacies(data || [])
+  async function loadAll() {
+    const [pharms, activePeriod] = await Promise.all([
+      listPharmacies({ activeOnly: true }),
+      getActivePeriod(),
+    ])
+    setPharmacies(pharms)
+    setPeriod(activePeriod)
+    refreshCounts(activePeriod)
   }
 
-  async function loadActivePeriod() {
-    const { data } = await supabase.from('submission_periods').select('*').eq('is_active', true).limit(1).single()
-    setPeriod(data || null)
-    if (data) loadRemaining(data.id)
-  }
-
-  async function loadRemaining(periodId) {
-    const { count: totalPharm } = await supabase.from('pharmacies').select('*', { count: 'exact', head: true }).eq('active', true)
-    const { data: submitted } = await supabase.from('submissions').select('pharmacy_id').eq('period_id', periodId)
-    const uniqueSubmitted = new Set((submitted || []).map(s => s.pharmacy_id)).size
-    setRemainingCount((totalPharm || 0) - uniqueSubmitted)
-  }
-
-  async function loadTodayCount() {
+  async function refreshCounts(activePeriod) {
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
-    const { count } = await supabase
-      .from('submissions')
-      .select('*', { count: 'exact', head: true })
-      .gte('received_at', startOfDay.toISOString())
-    setTodayCount(count || 0)
+    const [today, remaining] = await Promise.all([
+      countSubmissionsSince(startOfDay.toISOString()),
+      getRemainingPharmacyCount(activePeriod?.id),
+    ])
+    setTodayCount(today)
+    setRemainingCount(remaining)
   }
 
   function resetForm() {
@@ -81,11 +73,7 @@ export default function Reception() {
 
     setSaving(true)
     try {
-      const { data: receiptData, error: rpcError } = await supabase.rpc('generate_receipt_number')
-      if (rpcError) throw rpcError
-
       const payload = {
-        receipt_number: receiptData,
         pharmacy_id: selected.id,
         period_id: period?.id || null,
         voucher_count: Number(voucherCount),
@@ -97,31 +85,12 @@ export default function Reception() {
         req_bank_details: !!checks.req_bank_details,
         requirements_notes: notes || null,
         received_by: profile?.id,
-        status: 'submitted',
+        received_by_name: profile?.full_name,
       }
 
-      const { data, error: insertError } = await supabase.from('submissions').insert(payload).select().single()
-      if (insertError) throw insertError
-
-      setLastSubmission(data)
-      setTodayCount(c => c + 1)
-      if (period) loadRemaining(period.id)
-
-      // Fire-and-forget email notification via serverless function (SendGrid)
-      if (selected.email) {
-        fetch('/api/send-receipt-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: selected.email,
-            pharmacyName: selected.pharmacy_name,
-            receiptNumber: data.receipt_number,
-            voucherCount: data.voucher_count,
-            receivedAt: data.received_at,
-          }),
-        }).catch(() => {})
-      }
-
+      const record = await createSubmission(payload)
+      setLastSubmission(record)
+      refreshCounts(period)
       setTimeout(() => handlePrint(), 200)
     } catch (err) {
       setError(err.message || 'Something went wrong.')
