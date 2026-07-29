@@ -13,6 +13,7 @@ const Receipt = forwardRef(function Receipt({ submission, pharmacy, receivedByNa
   if (!submission || !pharmacy) return null
   return (
     <div ref={ref} className="receipt-print">
+      <div className="receipt-seal">Received<br/>RSSB</div>
       <div className="receipt-header">
         <h2>RSSB</h2>
         <h3>Pharmaceutical Invoice Reception Receipt</h3>
