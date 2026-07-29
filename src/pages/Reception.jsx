@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../lib/AuthContext.jsx'
 import PharmacySearch from '../components/PharmacySearch.jsx'
 import Receipt from '../components/Receipt.jsx'
+import { openMailDraft, buildPharmacyReceiptEmail } from '../lib/email'
+import {
+  listPharmacies, getActivePeriod, createSubmission,
+  countSubmissionsSince, getRemainingPharmacyCount,
+} from '../lib/localDb'
 
 const REQUIREMENTS = [
   { key: 'req_signed_vouchers', label: 'Signed vouchers' },
@@ -24,44 +28,36 @@ export default function Reception() {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [lastSubmission, setLastSubmission] = useState(null)
+  const [lastPharmacy, setLastPharmacy] = useState(null)
   const [todayCount, setTodayCount] = useState(0)
   const [remainingCount, setRemainingCount] = useState(null)
   const [error, setError] = useState('')
+  const [showPreview, setShowPreview] = useState(false)
+  const [emailNotice, setEmailNotice] = useState('')
   const printRef = useRef(null)
 
   const handlePrint = useReactToPrint({ contentRef: printRef })
 
-  useEffect(() => {
-    loadPharmacies()
-    loadActivePeriod()
-    loadTodayCount()
-  }, [])
+  useEffect(() => { loadAll() }, [])
 
-  async function loadPharmacies() {
-    const { data } = await supabase.from('pharmacies').select('*').eq('active', true).order('pharmacy_name')
-    setPharmacies(data || [])
+  async function loadAll() {
+    const [pharms, activePeriod] = await Promise.all([
+      listPharmacies({ activeOnly: true }),
+      getActivePeriod(),
+    ])
+    setPharmacies(pharms)
+    setPeriod(activePeriod)
+    refreshCounts(activePeriod)
   }
 
-  async function loadActivePeriod() {
-    const { data } = await supabase.from('submission_periods').select('*').eq('is_active', true).limit(1).single()
-    setPeriod(data || null)
-    if (data) loadRemaining(data.id)
-  }
-
-  async function loadRemaining(periodId) {
-    const { count: totalPharm } = await supabase.from('pharmacies').select('*', { count: 'exact', head: true }).eq('active', true)
-    const { data: submitted } = await supabase.from('submissions').select('pharmacy_id').eq('period_id', periodId)
-    const uniqueSubmitted = new Set((submitted || []).map(s => s.pharmacy_id)).size
-    setRemainingCount((totalPharm || 0) - uniqueSubmitted)
-  }
-
-  async function loadTodayCount() {
+  async function refreshCounts(activePeriod) {
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0)
-    const { count } = await supabase
-      .from('submissions')
-      .select('*', { count: 'exact', head: true })
-      .gte('received_at', startOfDay.toISOString())
-    setTodayCount(count || 0)
+    const [today, remaining] = await Promise.all([
+      countSubmissionsSince(startOfDay.toISOString()),
+      getRemainingPharmacyCount(activePeriod?.id),
+    ])
+    setTodayCount(today)
+    setRemainingCount(remaining)
   }
 
   function resetForm() {
@@ -81,11 +77,7 @@ export default function Reception() {
 
     setSaving(true)
     try {
-      const { data: receiptData, error: rpcError } = await supabase.rpc('generate_receipt_number')
-      if (rpcError) throw rpcError
-
       const payload = {
-        receipt_number: receiptData,
         pharmacy_id: selected.id,
         period_id: period?.id || null,
         voucher_count: Number(voucherCount),
@@ -97,37 +89,32 @@ export default function Reception() {
         req_bank_details: !!checks.req_bank_details,
         requirements_notes: notes || null,
         received_by: profile?.id,
-        status: 'submitted',
+        received_by_name: profile?.full_name,
       }
 
-      const { data, error: insertError } = await supabase.from('submissions').insert(payload).select().single()
-      if (insertError) throw insertError
-
-      setLastSubmission(data)
-      setTodayCount(c => c + 1)
-      if (period) loadRemaining(period.id)
-
-      // Fire-and-forget email notification via serverless function (SendGrid)
-      if (selected.email) {
-        fetch('/api/send-receipt-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: selected.email,
-            pharmacyName: selected.pharmacy_name,
-            receiptNumber: data.receipt_number,
-            voucherCount: data.voucher_count,
-            receivedAt: data.received_at,
-          }),
-        }).catch(() => {})
-      }
-
+      const record = await createSubmission(payload)
+      setLastSubmission(record)
+      setLastPharmacy(selected)
+      refreshCounts(period)
       setTimeout(() => handlePrint(), 200)
     } catch (err) {
       setError(err.message || 'Something went wrong.')
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleEmailPharmacy() {
+    if (!lastSubmission || !lastPharmacy) return
+    const draft = buildPharmacyReceiptEmail({
+      submission: lastSubmission,
+      pharmacy: lastPharmacy,
+      receivedByName: profile?.full_name,
+    })
+    setEmailNotice(
+      `An Outlook draft is opening for ${lastPharmacy.pharmacy_name}. Use Print Preview to save the receipt as a PDF first, then attach it to the draft before sending.`
+    )
+    openMailDraft(draft)
   }
 
   return (
@@ -168,16 +155,21 @@ export default function Reception() {
 
         <h3>Requirements Checklist</h3>
         <div className="checklist">
-          {REQUIREMENTS.map(r => (
-            <label key={r.key} className="checklist-item">
-              <input
-                type="checkbox"
-                checked={!!checks[r.key]}
-                onChange={e => setChecks(c => ({ ...c, [r.key]: e.target.checked }))}
-              />
-              {r.label}
-            </label>
-          ))}
+          {REQUIREMENTS.map(r => {
+            const active = !!checks[r.key]
+            return (
+              <button
+                type="button"
+                key={r.key}
+                className={`checklist-btn${active ? ' active' : ''}`}
+                aria-pressed={active}
+                onClick={() => setChecks(c => ({ ...c, [r.key]: !c[r.key] }))}
+              >
+                <span className="dot">{active ? '✓' : ''}</span>
+                {r.label}
+              </button>
+            )
+          })}
         </div>
 
         <label>Notes (optional)</label>
@@ -193,13 +185,37 @@ export default function Reception() {
 
       {lastSubmission && (
         <div className="last-receipt-actions">
-          <p>Receipt <strong>{lastSubmission.receipt_number}</strong> generated.</p>
-          <button className="btn-link" onClick={() => handlePrint()}>Print again</button>
+          <p>Receipt <strong>{lastSubmission.receipt_number}</strong> generated for <strong>{lastPharmacy?.pharmacy_name}</strong>.</p>
+          <div className="actions-cell">
+            <button className="btn-secondary" onClick={() => setShowPreview(true)}>Print Preview</button>
+            <button className="btn-link" onClick={() => handlePrint()}>Print again</button>
+            <button className="btn-gold" onClick={handleEmailPharmacy}>Email Receipt to Pharmacy</button>
+          </div>
+        </div>
+      )}
+
+      {emailNotice && <div className="alert-info">{emailNotice}</div>}
+
+      {showPreview && lastSubmission && (
+        <div className="modal-backdrop" onClick={() => setShowPreview(false)}>
+          <div className="modal-card modal-wide" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3 style={{ margin: 0 }}>Print Preview</h3>
+              <button className="modal-close" onClick={() => setShowPreview(false)}>✕</button>
+            </div>
+            <div className="print-preview-frame">
+              <Receipt submission={lastSubmission} pharmacy={lastPharmacy} receivedByName={profile?.full_name} />
+            </div>
+            <div className="form-actions">
+              <button className="btn-secondary" onClick={() => setShowPreview(false)}>Close</button>
+              <button className="btn-primary" onClick={() => handlePrint()}>Print</button>
+            </div>
+          </div>
         </div>
       )}
 
       <div style={{ display: 'none' }}>
-        <Receipt ref={printRef} submission={lastSubmission} pharmacy={selected} receivedByName={profile?.full_name} />
+        <Receipt ref={printRef} submission={lastSubmission} pharmacy={lastPharmacy} receivedByName={profile?.full_name} />
       </div>
     </div>
   )
