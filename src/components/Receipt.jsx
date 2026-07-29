@@ -11,6 +11,7 @@ const REQ_LABELS = {
 
 const Receipt = forwardRef(function Receipt({ submission, pharmacy, receivedByName }, ref) {
   if (!submission || !pharmacy) return null
+  const hasSubmitter = submission.submitted_by_name || submission.submitted_by_position || submission.submitted_by_contact
   return (
     <div ref={ref} className="receipt-print">
       <div className="receipt-seal">Received<br/>RSSB</div>
@@ -32,6 +33,26 @@ const Receipt = forwardRef(function Receipt({ submission, pharmacy, receivedByNa
           )}
         </tbody>
       </table>
+
+      {hasSubmitter && (
+        <>
+          <h4>Submitted By</h4>
+          <table className="receipt-meta">
+            <tbody>
+              {submission.submitted_by_name && (
+                <tr><td>Name</td><td>{submission.submitted_by_name}</td></tr>
+              )}
+              {submission.submitted_by_position && (
+                <tr><td>Position</td><td>{submission.submitted_by_position}</td></tr>
+              )}
+              {submission.submitted_by_contact && (
+                <tr><td>Contact</td><td>{submission.submitted_by_contact}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </>
+      )}
+
       <h4>Requirements Confirmed</h4>
       <ul className="receipt-req-list">
         {Object.entries(REQ_LABELS).map(([key, label]) => (

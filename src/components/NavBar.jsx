@@ -1,8 +1,15 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext.jsx'
 
 export default function NavBar() {
   const { profile, isAdmin, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  function handleSignOut() {
+    if (!window.confirm('Sign out of RSSB Invoice Reception?')) return
+    signOut()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <header className="navbar">
@@ -18,7 +25,7 @@ export default function NavBar() {
       </nav>
       <div className="navbar-user">
         <span>{profile?.full_name}</span>
-        <button className="btn-link" onClick={signOut}>Sign out</button>
+        <button className="btn-secondary btn-logout" onClick={handleSignOut}>Log out</button>
       </div>
     </header>
   )

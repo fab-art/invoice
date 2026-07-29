@@ -84,6 +84,11 @@ create table if not exists public.submissions (
   req_bank_details boolean default false,
   requirements_notes text,
 
+  -- Person from the pharmacy who physically delivered the documents
+  submitted_by_name text,
+  submitted_by_position text,
+  submitted_by_contact text,
+
   received_by uuid references public.profiles(id),
   received_at timestamptz default now(),
 

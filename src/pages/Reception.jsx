@@ -26,6 +26,9 @@ export default function Reception() {
   const [invoiceTotal, setInvoiceTotal] = useState('')
   const [checks, setChecks] = useState({})
   const [notes, setNotes] = useState('')
+  const [submitterName, setSubmitterName] = useState('')
+  const [submitterPosition, setSubmitterPosition] = useState('')
+  const [submitterContact, setSubmitterContact] = useState('')
   const [saving, setSaving] = useState(false)
   const [lastSubmission, setLastSubmission] = useState(null)
   const [lastPharmacy, setLastPharmacy] = useState(null)
@@ -36,6 +39,9 @@ export default function Reception() {
   const [emailNotice, setEmailNotice] = useState('')
   const printRef = useRef(null)
 
+  // react-to-print opens the browser's native print dialog — it never
+  // silently sends to a printer on its own, so this is only ever invoked
+  // by an explicit click on a Print button.
   const handlePrint = useReactToPrint({ contentRef: printRef })
 
   useEffect(() => { loadAll() }, [])
@@ -66,6 +72,9 @@ export default function Reception() {
     setInvoiceTotal('')
     setChecks({})
     setNotes('')
+    setSubmitterName('')
+    setSubmitterPosition('')
+    setSubmitterContact('')
     setError('')
   }
 
@@ -74,6 +83,7 @@ export default function Reception() {
     setError('')
     if (!selected) { setError('Please select a pharmacy.'); return }
     if (!voucherCount || Number(voucherCount) <= 0) { setError('Enter a valid voucher count.'); return }
+    if (!submitterName.trim()) { setError('Enter the name of the person submitting the invoice.'); return }
 
     setSaving(true)
     try {
@@ -88,6 +98,9 @@ export default function Reception() {
         req_prescription_copies: !!checks.req_prescription_copies,
         req_bank_details: !!checks.req_bank_details,
         requirements_notes: notes || null,
+        submitted_by_name: submitterName.trim(),
+        submitted_by_position: submitterPosition.trim() || null,
+        submitted_by_contact: submitterContact.trim() || null,
         received_by: profile?.id,
         received_by_name: profile?.full_name,
       }
@@ -96,7 +109,9 @@ export default function Reception() {
       setLastSubmission(record)
       setLastPharmacy(selected)
       refreshCounts(period)
-      setTimeout(() => handlePrint(), 200)
+      // Open the print preview area instead of sending straight to the
+      // printer — the receptionist reviews it and clicks Print themselves.
+      setShowPreview(true)
     } catch (err) {
       setError(err.message || 'Something went wrong.')
     } finally {
@@ -153,6 +168,22 @@ export default function Reception() {
           </div>
         </div>
 
+        <h3>Submitted By</h3>
+        <div className="form-row">
+          <div>
+            <label>Full name</label>
+            <input value={submitterName} onChange={e => setSubmitterName(e.target.value)} placeholder="Person delivering the documents" required />
+          </div>
+          <div>
+            <label>Position</label>
+            <input value={submitterPosition} onChange={e => setSubmitterPosition(e.target.value)} placeholder="e.g. Pharmacist, Accountant" />
+          </div>
+          <div>
+            <label>Contact number</label>
+            <input value={submitterContact} onChange={e => setSubmitterContact(e.target.value)} placeholder="e.g. 078xxxxxxx" />
+          </div>
+        </div>
+
         <h3>Requirements Checklist</h3>
         <div className="checklist">
           {REQUIREMENTS.map(r => {
@@ -178,7 +209,7 @@ export default function Reception() {
         <div className="form-actions">
           <button type="button" className="btn-secondary" onClick={resetForm}>Clear</button>
           <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : 'Confirm & Print Receipt'}
+            {saving ? 'Saving...' : 'Confirm Submission'}
           </button>
         </div>
       </form>
@@ -188,7 +219,6 @@ export default function Reception() {
           <p>Receipt <strong>{lastSubmission.receipt_number}</strong> generated for <strong>{lastPharmacy?.pharmacy_name}</strong>.</p>
           <div className="actions-cell">
             <button className="btn-secondary" onClick={() => setShowPreview(true)}>Print Preview</button>
-            <button className="btn-link" onClick={() => handlePrint()}>Print again</button>
             <button className="btn-gold" onClick={handleEmailPharmacy}>Email Receipt to Pharmacy</button>
           </div>
         </div>
