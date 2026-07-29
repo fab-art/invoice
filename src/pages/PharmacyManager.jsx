@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
-import { supabase } from '../lib/supabaseClient'
+import { listPharmacies, upsertPharmacy, bulkUpsertPharmacies, togglePharmacyActive } from '../lib/localDb'
+import { RWANDA_DISTRICTS } from '../lib/constants'
 
 const emptyForm = { pharmacy_code: '', pharmacy_name: '', district: '', sector: '', contact_person: '', phone: '', email: '' }
 
@@ -14,19 +15,16 @@ export default function PharmacyManager() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    const { data } = await supabase.from('pharmacies').select('*').order('pharmacy_name')
-    setPharmacies(data || [])
+    setPharmacies(await listPharmacies())
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setMessage('')
-    if (editingId) {
-      const { error } = await supabase.from('pharmacies').update(form).eq('id', editingId)
-      if (error) setMessage(error.message)
-    } else {
-      const { error } = await supabase.from('pharmacies').insert(form)
-      if (error) setMessage(error.message)
+    try {
+      await upsertPharmacy(editingId ? { ...form, id: editingId } : form)
+    } catch (err) {
+      setMessage(err.message)
     }
     setForm(emptyForm)
     setEditingId(null)
@@ -39,7 +37,7 @@ export default function PharmacyManager() {
   }
 
   async function toggleActive(p) {
-    await supabase.from('pharmacies').update({ active: !p.active }).eq('id', p.id)
+    await togglePharmacyActive(p)
     load()
   }
 
@@ -64,8 +62,8 @@ export default function PharmacyManager() {
 
     if (rows.length === 0) { setMessage('No valid rows found in the file.'); return }
 
-    const { error } = await supabase.from('pharmacies').upsert(rows, { onConflict: 'pharmacy_code' })
-    setMessage(error ? error.message : `Imported ${rows.length} pharmacies.`)
+    const count = await bulkUpsertPharmacies(rows)
+    setMessage(`Imported ${count} pharmacies.`)
     load()
     e.target.value = ''
   }
@@ -95,7 +93,13 @@ export default function PharmacyManager() {
           <div><label>Pharmacy Name</label><input value={form.pharmacy_name} onChange={e => setForm(f => ({ ...f, pharmacy_name: e.target.value }))} required /></div>
         </div>
         <div className="form-row">
-          <div><label>District</label><input value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} required /></div>
+          <div>
+            <label>District</label>
+            <select value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} required>
+              <option value="" disabled>Select district</option>
+              {RWANDA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
           <div><label>Sector</label><input value={form.sector || ''} onChange={e => setForm(f => ({ ...f, sector: e.target.value }))} /></div>
         </div>
         <div className="form-row">
