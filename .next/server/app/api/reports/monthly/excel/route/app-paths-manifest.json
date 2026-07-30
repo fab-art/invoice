@@ -1,0 +1,3 @@
+{
+  "/api/reports/monthly/excel/route": "app/api/reports/monthly/excel/route.js"
+}
