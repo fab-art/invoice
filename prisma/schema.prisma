@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (via Supabase's pgbouncer on port 6543) — used at runtime.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) — used for migrations only.
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  role      String   @default("RECEPTIONIST")
+  createdAt DateTime @default(now())
+  submissionsReceived Submission[] @relation("ReceivedBy")
+  submissionsVerified Submission[] @relation("VerifiedBy")
+}
+
+model Pharmacy {
+  id            String   @id @default(cuid())
+  pharmacyCode  String   @unique
+  pharmacyName  String
+  district      String
+  sector        String   @default("")
+  contactPerson String   @default("")
+  phone         String   @default("")
+  email         String   @default("")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  submissions   Submission[]
+}
+
+model SubmissionPeriod {
+  id        String   @id @default(cuid())
+  label     String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  submissions Submission[]
+}
+
+model Submission {
+  id                String            @id @default(cuid())
+  receiptNumber     String            @unique
+  pharmacyId        String
+  periodId          String
+  voucherCount      Int
+  invoiceTotalAmount Float             @default(0)
+  submittedByName   String
+  submittedByPosition String          @default("")
+  receivedById      String
+  receivedAt        DateTime          @default(now())
+  status            String            @default("SUBMITTED")
+  verifiedById      String?
+  verifiedAt        DateTime?
+  paymentId         String?
+  paidAmount        Float?
+  paidAt            DateTime?
+  notes             String            @default("")
+  createdAt         DateTime          @default(now())
+
+  pharmacy  Pharmacy         @relation(fields: [pharmacyId], references: [id])
+  period    SubmissionPeriod @relation(fields: [periodId], references: [id])
+  receivedBy User            @relation("ReceivedBy", fields: [receivedById], references: [id])
+  verifiedBy User?           @relation("VerifiedBy", fields: [verifiedById], references: [id])
+}
