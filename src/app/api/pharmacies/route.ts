@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,25 +7,27 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const includeInactive = searchParams.get('includeInactive') === 'true';
 
-    const where: any = {
-      active: includeInactive ? undefined : true,
-    };
+    let query = supabase
+      .from('Pharmacy')
+      .select('*')
+      .order('pharmacyName', { ascending: true })
+      .limit(20);
 
-    if (search) {
-      where.OR = [
-        { pharmacyName: { contains: search } },
-        { pharmacyCode: { contains: search } },
-        { district: { contains: search } },
-      ];
+    if (!includeInactive) {
+      query = query.eq('active', true);
     }
 
-    const pharmacies = await db.pharmacy.findMany({
-      where,
-      orderBy: { pharmacyName: 'asc' },
-      take: 20,
-    });
+    if (search) {
+      const term = `%${search}%`;
+      query = query.or(
+        `pharmacyName.ilike.${term},pharmacyCode.ilike.${term},district.ilike.${term}`
+      );
+    }
 
-    return NextResponse.json(pharmacies);
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Pharmacies fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch pharmacies' }, { status: 500 });
@@ -41,16 +43,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Code, name, and district are required' }, { status: 400 });
     }
 
-    const pharmacy = await db.pharmacy.create({
-      data: { pharmacyCode, pharmacyName, district, sector: sector || '', contactPerson: contactPerson || '', phone: phone || '', email: email || '' },
-    });
+    const { data, error } = await supabase
+      .from('Pharmacy')
+      .insert({
+        pharmacyCode,
+        pharmacyName,
+        district,
+        sector: sector || '',
+        contactPerson: contactPerson || '',
+        phone: phone || '',
+        email: email || '',
+      })
+      .select()
+      .single();
 
-    return NextResponse.json(pharmacy, { status: 201 });
-  } catch (error: any) {
-    console.error('Pharmacy create error:', error);
-    if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'Pharmacy code already exists' }, { status: 409 });
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'Pharmacy code already exists' }, { status: 409 });
+      }
+      throw error;
     }
+
+    return NextResponse.json(data, { status: 201 });
+  } catch (error) {
+    console.error('Pharmacy create error:', error);
     return NextResponse.json({ error: 'Failed to create pharmacy' }, { status: 500 });
   }
 }

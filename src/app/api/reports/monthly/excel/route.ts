@@ -1,30 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const periodId = searchParams.get('periodId');
 
-    const where: any = {};
-    if (periodId) where.periodId = periodId;
+    let query = supabase
+      .from('Submission')
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(fullName)
+      `)
+      .order('receivedAt', { ascending: true });
 
-    const submissions = await db.submission.findMany({
-      where,
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { fullName: true } },
-      },
-      orderBy: { receivedAt: 'asc' },
-    });
+    if (periodId) query = query.eq('periodId', periodId);
+
+    const { data: submissions, error: fetchError } = await query;
+    if (fetchError) throw fetchError;
+    const rows = submissions ?? [];
 
     const XLSX = await import('xlsx');
     const workbook = XLSX.utils.book_new();
 
     const header = ['No', 'Pharmacy Code', 'Health Facility', 'District', 'Date of Reception', 'Vouchers', 'Amount Billed (RWF)', 'Submitted By', 'Status', 'Payment ID', 'Paid Amount'];
 
-    const data = submissions.map((s, i) => [
+    const data = rows.map((s: any, i: number) => [
       i + 1,
       s.pharmacy.pharmacyCode,
       s.pharmacy.pharmacyName,
@@ -38,8 +41,8 @@ export async function GET(req: NextRequest) {
       s.paidAmount || '',
     ]);
 
-    const totalVouchers = submissions.reduce((sum, s) => sum + s.voucherCount, 0);
-    const totalAmount = submissions.reduce((sum, s) => sum + (s.invoiceTotalAmount || 0), 0);
+    const totalVouchers = rows.reduce((sum: number, s: any) => sum + s.voucherCount, 0);
+    const totalAmount = rows.reduce((sum: number, s: any) => sum + (s.invoiceTotalAmount || 0), 0);
     data.push(['', '', '', '', 'TOTAL', totalVouchers, totalAmount, '', '', '', '']);
 
     const worksheet = XLSX.utils.aoa_to_sheet([header, ...data]);

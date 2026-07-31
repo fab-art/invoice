@@ -1,18 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
 
-    const submission = await db.submission.findUnique({
-      where: { id },
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { id: true, fullName: true } },
-      },
-    });
+    const { data: submission, error } = await supabase
+      .from('Submission')
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(id, fullName)
+      `)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
 
     if (!submission) {
       return NextResponse.json({ error: 'Submission not found' }, { status: 404 });

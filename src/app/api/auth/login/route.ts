@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { sessionOptions, SessionData } from '@/lib/session';
 import { getIronSession } from 'iron-session';
 
@@ -12,7 +12,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const user = await db.user.findUnique({ where: { email } });
+    const { data: user, error } = await supabase
+      .from('User')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) throw error;
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
