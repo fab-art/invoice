@@ -1,33 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const periodId = searchParams.get('periodId');
 
-    const where: any = {};
+    let query = supabase
+      .from('Submission')
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(fullName)
+      `)
+      .order('receivedAt', { ascending: true });
+
     if (periodId) {
-      where.periodId = periodId;
+      query = query.eq('periodId', periodId);
     }
 
-    const submissions = await db.submission.findMany({
-      where,
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { fullName: true } },
-      },
-      orderBy: { receivedAt: 'asc' },
-    });
+    const { data: submissions, error } = await query;
+    if (error) throw error;
 
+    const rows = submissions ?? [];
     const totals = {
-      submissions: submissions.length,
-      vouchers: submissions.reduce((sum, s) => sum + s.voucherCount, 0),
-      amount: submissions.reduce((sum, s) => sum + (s.invoiceTotalAmount || 0), 0),
+      submissions: rows.length,
+      vouchers: rows.reduce((sum: number, s: any) => sum + s.voucherCount, 0),
+      amount: rows.reduce((sum: number, s: any) => sum + (s.invoiceTotalAmount || 0), 0),
     };
 
-    return NextResponse.json({ submissions, totals, periodId });
+    return NextResponse.json({ submissions: rows, totals, periodId });
   } catch (error) {
     console.error('Monthly report error:', error);
     return NextResponse.json({ error: 'Failed to fetch monthly report' }, { status: 500 });

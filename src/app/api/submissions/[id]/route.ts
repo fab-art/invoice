@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { sessionOptions, SessionData } from '@/lib/session';
 import { getIronSession } from 'iron-session';
 
@@ -16,16 +16,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { status, notes, paymentId, paidAmount, paidAt } = body;
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
 
     if (status) {
       updateData.status = status;
       if (status === 'UNDER_REVIEW' || status === 'VERIFIED' || status === 'REJECTED' || status === 'PAID') {
         updateData.verifiedById = session.userId;
-        updateData.verifiedAt = new Date();
+        updateData.verifiedAt = new Date().toISOString();
       }
       if (status === 'PAID') {
-        updateData.paidAt = paidAt ? new Date(paidAt) : new Date();
+        updateData.paidAt = paidAt ? new Date(paidAt).toISOString() : new Date().toISOString();
         if (paidAmount !== undefined) updateData.paidAmount = parseFloat(paidAmount);
         if (paymentId) updateData.paymentId = paymentId;
       }
@@ -34,16 +34,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (paymentId) updateData.paymentId = paymentId;
     if (paidAmount !== undefined) updateData.paidAmount = parseFloat(paidAmount);
 
-    const submission = await db.submission.update({
-      where: { id },
-      data: updateData,
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { id: true, fullName: true } },
-        verifiedBy: { select: { id: true, fullName: true } },
-      },
-    });
+    const { data: submission, error } = await supabase
+      .from('Submission')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(id, fullName),
+        verifiedBy:User!verifiedById(id, fullName)
+      `)
+      .single();
+
+    if (error) throw error;
 
     return NextResponse.json(submission);
   } catch (error) {

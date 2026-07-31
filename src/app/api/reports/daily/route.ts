@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,25 +10,28 @@ export async function GET(req: NextRequest) {
     const endDate = new Date(dateStr);
     endDate.setDate(endDate.getDate() + 1);
 
-    const submissions = await db.submission.findMany({
-      where: {
-        receivedAt: { gte: startDate, lt: endDate },
-      },
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { fullName: true } },
-      },
-      orderBy: { receivedAt: 'asc' },
-    });
+    const { data: submissions, error } = await supabase
+      .from('Submission')
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(fullName)
+      `)
+      .gte('receivedAt', startDate.toISOString())
+      .lt('receivedAt', endDate.toISOString())
+      .order('receivedAt', { ascending: true });
 
+    if (error) throw error;
+
+    const rows = submissions ?? [];
     const totals = {
-      submissions: submissions.length,
-      vouchers: submissions.reduce((sum, s) => sum + s.voucherCount, 0),
-      amount: submissions.reduce((sum, s) => sum + (s.invoiceTotalAmount || 0), 0),
+      submissions: rows.length,
+      vouchers: rows.reduce((sum: number, s: any) => sum + s.voucherCount, 0),
+      amount: rows.reduce((sum: number, s: any) => sum + (s.invoiceTotalAmount || 0), 0),
     };
 
-    return NextResponse.json({ date: dateStr, submissions, totals });
+    return NextResponse.json({ date: dateStr, submissions: rows, totals });
   } catch (error) {
     console.error('Daily report error:', error);
     return NextResponse.json({ error: 'Failed to fetch daily report' }, { status: 500 });

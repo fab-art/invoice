@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,17 +10,20 @@ export async function GET(req: NextRequest) {
     const endDate = new Date(dateStr);
     endDate.setDate(endDate.getDate() + 1);
 
-    const submissions = await db.submission.findMany({
-      where: {
-        receivedAt: { gte: startDate, lt: endDate },
-      },
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { fullName: true } },
-      },
-      orderBy: { receivedAt: 'asc' },
-    });
+    const { data: submissionsData, error: fetchError } = await supabase
+      .from('Submission')
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(fullName)
+      `)
+      .gte('receivedAt', startDate.toISOString())
+      .lt('receivedAt', endDate.toISOString())
+      .order('receivedAt', { ascending: true });
+
+    if (fetchError) throw fetchError;
+    const submissions = submissionsData ?? [];
 
     const { jsPDF } = await import('jspdf');
     await import('jspdf-autotable');
