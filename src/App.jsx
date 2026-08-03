@@ -1,10 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext.jsx'
-import Login from './pages/Login.jsx'
-import Reception from './pages/Reception.jsx'
-import AdminDashboard from './pages/AdminDashboard.jsx'
-import DailyReport from './pages/DailyReport.jsx'
-import PharmacyManager from './pages/PharmacyManager.jsx'
+import Login from './pages-vite/Login.jsx'
+import Reception from './pages-vite/Reception.jsx'
+import AdminDashboard from './pages-vite/AdminDashboard.jsx'
+import DailyReport from './pages-vite/DailyReport.jsx'
+import PharmacyManager from './pages-vite/PharmacyManager.jsx'
 import NavBar from './components/NavBar.jsx'
 
 function PrivateRoute({ children, adminOnly = false }) {
