@@ -35,23 +35,54 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .app-main { flex: 1; padding: 1.75rem 1.5rem 3rem; max-width: 1160px; margin: 0 auto; width: 100%; }
 
+
+
 .navbar {
-  display: flex; align-items: center; gap: 1.75rem;
-  background: var(--navy); color: white; padding: 0.65rem 1.5rem;
-  flex-wrap: wrap; border-bottom: 4px solid var(--gold);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 1.5rem;
+  background: var(--navy); color: white; padding: 0.65rem 1.25rem;
+  border-bottom: 4px solid var(--gold); position: sticky; top: 0; z-index: 40;
 }
-.navbar-brand { display: flex; align-items: center; gap: 0.65rem; font-family: var(--font-display); font-weight: 700; font-size: 1.02rem; letter-spacing: 0.01em; }
+.navbar-row { display: flex; align-items: center; justify-content: space-between; flex: 1; gap: 1rem; }
+.navbar-brand { display: flex; align-items: center; gap: 0.65rem; font-family: var(--font-display); font-weight: 700; font-size: 1.02rem; letter-spacing: 0.01em; white-space: nowrap; }
 .navbar-logo { height: 34px; width: auto; display: block; background: white; border-radius: 6px; padding: 3px 6px; }
-.navbar-links { display: flex; gap: 0.25rem; flex: 1; }
+
+.navbar-toggle {
+  display: none; flex-direction: column; justify-content: center; gap: 4px;
+  width: 40px; height: 36px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 6px; cursor: pointer; padding: 0;
+}
+.navbar-toggle span { display: block; height: 2px; width: 18px; margin: 0 auto; background: white; border-radius: 2px; }
+
+.navbar-links { display: flex; gap: 0.25rem; flex: 1; flex-wrap: wrap; }
 .navbar-links a {
   color: rgba(255,255,255,0.78); text-decoration: none; padding: 0.4rem 0.7rem; border-radius: 5px;
   font-size: 0.9rem; font-weight: 600; transition: background 0.15s ease, color 0.15s ease;
-  border-bottom: 2px solid transparent;
+  border-bottom: 2px solid transparent; white-space: nowrap;
 }
 .navbar-links a.active, .navbar-links a:hover { background: rgba(255,255,255,0.12); color: white; border-bottom-color: var(--gold); }
+
 .navbar-user { display: flex; align-items: center; gap: 0.85rem; font-size: 0.88rem; color: rgba(255,255,255,0.85); }
-.btn-logout { background: transparent; border-color: rgba(255,255,255,0.4); color: white; padding: 0.4rem 0.85rem; font-size: 0.85rem; }
-.btn-logout:hover { background: rgba(255,255,255,0.12); border-color: white; color: white; }
+.operator-chip {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.35); color: white;
+  border-radius: 999px; padding: 0.35rem 0.9rem; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: background 0.15s ease;
+}
+.operator-chip:hover { background: rgba(255,255,255,0.2); }
+.operator-form { display: flex; gap: 0.5rem; align-items: center; }
+.operator-form input { width: 190px; margin-bottom: 0; }
+.btn-sm { padding: 0.4rem 0.75rem; font-size: 0.82rem; white-space: nowrap; }
+
+/* Mobile nav: collapse links + user chip behind the hamburger toggle */
+@media (max-width: 780px) {
+  .navbar-toggle { display: flex; }
+  .navbar-links, .navbar-user { display: none; width: 100%; }
+  .navbar-links.open, .navbar-user.open { display: flex; }
+  .navbar-links { flex-direction: column; gap: 0.15rem; order: 3; padding-top: 0.5rem; }
+  .navbar-links a { padding: 0.65rem 0.75rem; }
+  .navbar-user { order: 4; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.15); margin-top: 0.25rem; }
+  .operator-form { width: 100%; }
+  .operator-form input { flex: 1; width: auto; }
+}
 
 .btn-primary, .btn-secondary, .btn-link, .btn-gold {
   cursor: pointer; border-radius: 6px; font-size: 0.92rem; padding: 0.55rem 1.1rem;
@@ -73,14 +104,6 @@ input, textarea, select {
 }
 label { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 0.3rem; }
 
-.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%); }
-.login-card {
-  background: var(--surface); padding: 2.25rem; border-radius: 10px; width: 380px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.35); border-top: 5px solid var(--gold);
-}
-.login-logo { display: block; height: 56px; width: auto; margin: 0 auto 1rem; }
-.login-card h1 { font-size: 1.2rem; margin-bottom: 0.15rem; text-align: center; }
-.subtitle { color: var(--muted); margin-top: 0; margin-bottom: 1.25rem; font-size: 0.9rem; text-align: center; }
 .hint { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
 .hint code { background: var(--paper); padding: 0.1rem 0.3rem; border-radius: 4px; }
 
@@ -163,6 +186,7 @@ label { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transfor
 
 .report-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .report-header input[type="date"] { width: auto; margin-bottom: 0; }
+.supervisor-row { margin-bottom: 1rem; }
 
 .loading-screen { display: flex; align-items: center; justify-content: center; height: 100vh; font-family: var(--font-display); color: var(--muted); }
 
@@ -211,4 +235,71 @@ label { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transfor
   body * { visibility: hidden; }
   .receipt-print, .receipt-print * { visibility: visible; }
   .receipt-print { position: absolute; top: 0; left: 0; border: none; }
+}
+
+/* ---------------------------------------------------------------
+   Responsive layout — mobile-first adjustments for phones/tablets.
+   Data tables collapse into stacked cards below 640px so nothing
+   requires horizontal scrolling on a phone screen.
+--------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .app-main { padding: 1.25rem 1rem 2.5rem; }
+  .form-row { flex-direction: column; gap: 0; }
+  .checklist { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  h2 { font-size: 1.2rem; }
+  .reception-stats { gap: 0.6rem; }
+  .stat-card { min-width: 0; flex: 1 1 calc(50% - 0.6rem); padding: 0.85rem 1rem; }
+  .stat-value { font-size: 1.5rem; }
+
+  .reception-form, .pharmacy-form, .report-doc {
+    padding: 1rem; border-radius: 6px; margin-left: -0.25rem; margin-right: -0.25rem;
+  }
+  .checklist { grid-template-columns: 1fr; }
+
+  .page-header-row { flex-direction: column; align-items: stretch; }
+  .period-switcher select { width: 100%; }
+  .report-header { flex-direction: column; align-items: stretch; }
+  .report-header input[type="date"] { width: 100%; }
+  .report-header button { width: 100%; }
+  .import-row { flex-direction: column; align-items: stretch; }
+
+  .modal-card { width: 100%; padding: 1.1rem; }
+  .modal-card.modal-wide { width: 100%; max-height: 92vh; }
+  .print-preview-frame { padding: 0.75rem; }
+  .receipt-print { width: 100%; max-width: 360px; }
+
+  .last-receipt-actions { flex-direction: column; align-items: stretch; }
+  .last-receipt-actions .actions-cell { flex-direction: column; }
+  .last-receipt-actions button { width: 100%; }
+
+  /* Data tables become stacked cards: each row is a card, each cell
+     shows its column header as a label via ::before + data-label. */
+  .data-table.stack-on-mobile thead { display: none; }
+  .data-table.stack-on-mobile, .data-table.stack-on-mobile tbody, .data-table.stack-on-mobile tr, .data-table.stack-on-mobile td {
+    display: block; width: 100%;
+  }
+  .data-table.stack-on-mobile tr {
+    margin-bottom: 0.75rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .data-table.stack-on-mobile td {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+    text-align: right; border-bottom: 1px solid var(--border);
+  }
+  .data-table.stack-on-mobile td:last-child { border-bottom: none; }
+  .data-table.stack-on-mobile td::before {
+    content: attr(data-label); font-weight: 700; color: var(--muted); text-transform: uppercase;
+    font-size: 0.7rem; letter-spacing: 0.03em; text-align: left; flex-shrink: 0;
+  }
+  .data-table.stack-on-mobile td.actions-cell { flex-direction: column; align-items: stretch; text-align: left; }
+  .data-table.stack-on-mobile tfoot tr { display: block; }
+  .data-table.stack-on-mobile tfoot td { display: flex; }
+}
+
+/* Respect safe areas on notched phones when the app is installed as a PWA */
+@supports (padding: max(0px)) {
+  .navbar { padding-left: max(1.25rem, env(safe-area-inset-left)); padding-right: max(1.25rem, env(safe-area-inset-right)); }
+  .app-main { padding-left: max(1rem, env(safe-area-inset-left)); padding-right: max(1rem, env(safe-area-inset-right)); }
 }

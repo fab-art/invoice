@@ -4,12 +4,22 @@
 // relevant file, (2) open a mailto draft with subject + body already written,
 // (3) the user attaches the just-downloaded file before hitting send.
 
-export function openMailDraft({ to = '', cc = '', subject = '', body = '' }) {
+export function openMailDraft({ to = '', cc = '', bcc = '', subject = '', body = '' }) {
+  // mailto: syntax is `mailto:address1,address2?key=value&...`. The address
+  // list itself must stay unencoded (encodeURIComponent would turn every
+  // "@" into "%40", which some mail clients fail to parse), while the
+  // query-string parameters (subject/body/cc/bcc) do need encoding since
+  // they can contain characters like "&", "?", "=", and newlines.
+  const toList = to.split(',').map(a => a.trim()).filter(Boolean).join(',')
+
   const params = new URLSearchParams()
   if (cc) params.set('cc', cc)
-  params.set('subject', subject)
-  params.set('body', body)
-  const url = `mailto:${encodeURIComponent(to)}?${params.toString()}`
+  if (bcc) params.set('bcc', bcc)
+  if (subject) params.set('subject', subject)
+  if (body) params.set('body', body)
+
+  const query = params.toString()
+  const url = `mailto:${toList}${query ? `?${query}` : ''}`
   window.location.href = url
 }
 
@@ -39,7 +49,7 @@ export function buildPharmacyReceiptEmail({ submission, pharmacy, receivedByName
   }
 }
 
-export function buildSupervisorReportEmail({ date, rows, totals }) {
+export function buildSupervisorReportEmail({ date, rows, totals, to = '' }) {
   const subject = `Reception Report - ${date}`
   const body = [
     `Dear Supervisor,`,
@@ -56,5 +66,5 @@ export function buildSupervisorReportEmail({ date, rows, totals }) {
     'Kind regards,',
     'RSSB Reception Desk',
   ].join('\n')
-  return { to: '', subject, body }
+  return { to, subject, body }
 }

@@ -14,10 +14,6 @@ function getDb() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        if (!db.objectStoreNames.contains('users')) {
-          const store = db.createObjectStore('users', { keyPath: 'id' })
-          store.createIndex('by_email', 'email', { unique: true })
-        }
         if (!db.objectStoreNames.contains('pharmacies')) {
           const store = db.createObjectStore('pharmacies', { keyPath: 'id' })
           store.createIndex('by_code', 'pharmacy_code', { unique: true })
@@ -45,27 +41,13 @@ function uuid() {
 }
 
 // ---------------------------------------------------------------
-// Seed data on first run: a default admin user + an active period
+// Seed data on first run: an active billing period + sample pharmacies.
+// There are no user accounts in this local-only version — everyone who
+// opens the app on this device shares the same data, and the operator's
+// name (used on receipts/reports) is just a text field, not a login.
 // ---------------------------------------------------------------
 export async function ensureSeeded() {
   const db = await getDb()
-  const userCount = await db.count('users')
-  if (userCount === 0) {
-    await db.put('users', {
-      id: uuid(),
-      email: 'admin@rssb.local',
-      password: 'admin123', // local-only demo auth — replace with real auth later
-      full_name: 'Default Admin',
-      role: 'admin',
-    })
-    await db.put('users', {
-      id: uuid(),
-      email: 'reception@rssb.local',
-      password: 'reception123',
-      full_name: 'Front Desk',
-      role: 'receptionist',
-    })
-  }
   const periodCount = await db.count('periods')
   if (periodCount === 0) {
     const year = new Date().getFullYear()
@@ -81,29 +63,6 @@ export async function ensureSeeded() {
   }
   const receiptSeq = await db.get('meta', 'receipt_seq')
   if (!receiptSeq) await db.put('meta', { key: 'receipt_seq', value: 0 })
-}
-
-// ---------------------------------------------------------------
-// Auth (local-only demo — email/password checked against IndexedDB)
-// ---------------------------------------------------------------
-export async function login(email, password) {
-  const db = await getDb()
-  const user = await db.getFromIndex('users', 'by_email', email)
-  if (!user || user.password !== password) {
-    throw new Error('Invalid email or password.')
-  }
-  const session = { id: user.id, email: user.email, full_name: user.full_name, role: user.role }
-  localStorage.setItem('rssb_session', JSON.stringify(session))
-  return session
-}
-
-export function logout() {
-  localStorage.removeItem('rssb_session')
-}
-
-export function getSession() {
-  const raw = localStorage.getItem('rssb_session')
-  return raw ? JSON.parse(raw) : null
 }
 
 // ---------------------------------------------------------------
