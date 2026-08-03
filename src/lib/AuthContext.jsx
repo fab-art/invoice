@@ -1,27 +1,50 @@
+/**
+ * Authentication Context Provider
+ * 
+ * Manages user authentication state using local IndexedDB storage.
+ * Provides signIn, signOut, and session management throughout the app.
+ */
 import { createContext, useContext, useEffect, useState } from 'react'
 import { ensureSeeded, login as dbLogin, logout as dbLogout, getSession } from './localDb'
 
-const AuthContext = createContext(null)
+interface Session {
+  id: string
+  email: string
+  full_name: string
+  role: 'admin' | 'receptionist'
+}
 
-export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null)
+interface AuthContextType {
+  session: Session | null
+  profile: Session | null
+  loading: boolean
+  isAdmin: boolean
+  signIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>
+  signOut: () => void
+}
+
+const AuthContext = createContext<AuthContextType | null>(null)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    (async () => {
+    async function init() {
       await ensureSeeded()
       setSession(getSession())
       setLoading(false)
-    })()
+    }
+    init()
   }, [])
 
-  async function signIn(email, password) {
+  async function signIn(email: string, password: string) {
     try {
       const sess = await dbLogin(email, password)
       setSession(sess)
       return { error: null }
     } catch (err) {
-      return { error: { message: err.message } }
+      return { error: { message: (err as Error).message } }
     }
   }
 
@@ -40,5 +63,9 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }

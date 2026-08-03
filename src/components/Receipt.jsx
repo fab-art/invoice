@@ -1,7 +1,41 @@
+/**
+ * Receipt Component - Print-ready receipt for pharmacy submissions
+ * 
+ * Displays submission details in a formatted, printable layout.
+ * Used for generating PDF receipts and print previews.
+ */
 import { forwardRef } from 'react'
 import dayjs from 'dayjs'
 
-const REQ_LABELS = {
+interface Submission {
+  receipt_number: string
+  received_at: string
+  voucher_count: number
+  invoice_total_amount?: number | null
+  submitted_by_name?: string | null
+  submitted_by_position?: string | null
+  submitted_by_contact?: string | null
+  requirements_notes?: string | null
+  req_signed_vouchers?: boolean
+  req_summary_sheet?: boolean
+  req_stamped_invoice?: boolean
+  req_prescription_copies?: boolean
+  req_bank_details?: boolean
+}
+
+interface Pharmacy {
+  pharmacy_name: string
+  pharmacy_code: string
+  district: string
+}
+
+interface ReceiptProps {
+  submission: Submission
+  pharmacy: Pharmacy
+  receivedByName?: string
+}
+
+const REQ_LABELS: Record<string, string> = {
   req_signed_vouchers: 'Signed vouchers',
   req_summary_sheet: 'Summary sheet',
   req_stamped_invoice: 'Stamped invoice',
@@ -9,9 +43,11 @@ const REQ_LABELS = {
   req_bank_details: 'Bank details',
 }
 
-const Receipt = forwardRef(function Receipt({ submission, pharmacy, receivedByName }, ref) {
+const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(function Receipt({ submission, pharmacy, receivedByName }, ref) {
   if (!submission || !pharmacy) return null
+  
   const hasSubmitter = submission.submitted_by_name || submission.submitted_by_position || submission.submitted_by_contact
+  
   return (
     <div ref={ref} className="receipt-print">
       <div className="receipt-seal">Received<br/>RSSB</div>
