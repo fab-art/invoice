@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import { useAuth } from '../lib/AuthContext.jsx'
+import { useSettings } from '../lib/SettingsContext.jsx'
 import PharmacySearch from '../components/PharmacySearch.jsx'
 import Receipt from '../components/Receipt.jsx'
 import { openMailDraft, buildPharmacyReceiptEmail } from '../lib/email'
@@ -18,7 +18,7 @@ const REQUIREMENTS = [
 ]
 
 export default function Reception() {
-  const { profile } = useAuth()
+  const { operatorName } = useSettings()
   const [pharmacies, setPharmacies] = useState([])
   const [period, setPeriod] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -101,8 +101,7 @@ export default function Reception() {
         submitted_by_name: submitterName.trim(),
         submitted_by_position: submitterPosition.trim() || null,
         submitted_by_contact: submitterContact.trim() || null,
-        received_by: profile?.id,
-        received_by_name: profile?.full_name,
+        received_by_name: operatorName || null,
       }
 
       const record = await createSubmission(payload)
@@ -124,10 +123,12 @@ export default function Reception() {
     const draft = buildPharmacyReceiptEmail({
       submission: lastSubmission,
       pharmacy: lastPharmacy,
-      receivedByName: profile?.full_name,
+      receivedByName: operatorName,
     })
     setEmailNotice(
-      `An Outlook draft is opening for ${lastPharmacy.pharmacy_name}. Use Print Preview to save the receipt as a PDF first, then attach it to the draft before sending.`
+      draft.to
+        ? `An email draft is opening for ${lastPharmacy.pharmacy_name}. Use Print Preview to save the receipt as a PDF first, then attach it to the draft before sending.`
+        : `${lastPharmacy.pharmacy_name} has no email on file — a blank draft is opening. Add their address in Pharmacies, or fill it in manually.`
     )
     openMailDraft(draft)
   }
@@ -234,7 +235,7 @@ export default function Reception() {
               <button className="modal-close" onClick={() => setShowPreview(false)}>✕</button>
             </div>
             <div className="print-preview-frame">
-              <Receipt submission={lastSubmission} pharmacy={lastPharmacy} receivedByName={profile?.full_name} />
+              <Receipt submission={lastSubmission} pharmacy={lastPharmacy} receivedByName={operatorName} />
             </div>
             <div className="form-actions">
               <button className="btn-secondary" onClick={() => setShowPreview(false)}>Close</button>
@@ -245,7 +246,7 @@ export default function Reception() {
       )}
 
       <div style={{ display: 'none' }}>
-        <Receipt ref={printRef} submission={lastSubmission} pharmacy={lastPharmacy} receivedByName={profile?.full_name} />
+        <Receipt ref={printRef} submission={lastSubmission} pharmacy={lastPharmacy} receivedByName={operatorName} />
       </div>
     </div>
   )

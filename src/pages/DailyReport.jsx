@@ -5,6 +5,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { listSubmissionsBetween, listPharmacies, updateSubmission } from '../lib/localDb'
 import { openMailDraft, buildSupervisorReportEmail } from '../lib/email'
+import { useSettings } from '../lib/SettingsContext.jsx'
 
 const NAVY = [27, 42, 107]
 const GOLD = [245, 166, 35]
@@ -25,6 +26,7 @@ async function loadLogoDataUrl() {
 }
 
 export default function DailyReport() {
+  const { supervisorEmail, setSupervisorEmail } = useSettings()
   const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'))
   const [rows, setRows] = useState([])
   const [pharmacyMap, setPharmacyMap] = useState({})
@@ -33,6 +35,8 @@ export default function DailyReport() {
   const [editRow, setEditRow] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [editingSupervisor, setEditingSupervisor] = useState(false)
+  const [supervisorDraft, setSupervisorDraft] = useState(supervisorEmail)
 
   useEffect(() => { loadReport() }, [date])
 
@@ -181,9 +185,19 @@ export default function DailyReport() {
 
   async function handleEmailSupervisor() {
     await exportPdf()
-    const draft = buildSupervisorReportEmail({ date: dayjs(date).format('DD/MM/YYYY'), rows, totals })
-    setEmailNotice('The PDF report has just downloaded, and an Outlook draft is opening for your supervisor. Attach the downloaded PDF to the draft before sending.')
+    const draft = buildSupervisorReportEmail({ date: dayjs(date).format('DD/MM/YYYY'), rows, totals, to: supervisorEmail })
+    setEmailNotice(
+      supervisorEmail
+        ? `The PDF report has just downloaded, and an email draft is opening for ${supervisorEmail}. Attach the downloaded PDF to the draft before sending.`
+        : 'The PDF report has just downloaded, and a blank email draft is opening. Set a supervisor email above so this fills in automatically next time.'
+    )
     openMailDraft(draft)
+  }
+
+  function saveSupervisorEmail(e) {
+    e.preventDefault()
+    setSupervisorEmail(supervisorDraft)
+    setEditingSupervisor(false)
   }
 
   function openEdit(row) {
@@ -230,6 +244,27 @@ export default function DailyReport() {
         <button className="btn-gold" onClick={handleEmailSupervisor} disabled={rows.length === 0}>Email Report to Supervisor</button>
       </div>
 
+      <div className="supervisor-row">
+        {editingSupervisor ? (
+          <form className="operator-form" onSubmit={saveSupervisorEmail}>
+            <input
+              type="email"
+              autoFocus
+              value={supervisorDraft}
+              onChange={e => setSupervisorDraft(e.target.value)}
+              placeholder="supervisor@rssb.rw"
+              aria-label="Supervisor email"
+            />
+            <button type="submit" className="btn-gold btn-sm">Save</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => { setSupervisorDraft(supervisorEmail); setEditingSupervisor(false) }}>Cancel</button>
+          </form>
+        ) : (
+          <button type="button" className="operator-chip" onClick={() => setEditingSupervisor(true)}>
+            {supervisorEmail ? `Reports go to ${supervisorEmail}` : 'Set supervisor email'}
+          </button>
+        )}
+      </div>
+
       {emailNotice && <div className="alert-info">{emailNotice}</div>}
 
       <div className="reception-stats">
@@ -252,7 +287,7 @@ export default function DailyReport() {
         <div className="report-doc-subtitle">1. Achievements</div>
 
         {loading ? <p>Loading...</p> : (
-          <table className="data-table">
+          <table className="data-table stack-on-mobile">
             <thead>
               <tr>
                 <th>No</th><th>Code</th><th>Health Facility</th><th>District</th>
@@ -265,16 +300,16 @@ export default function DailyReport() {
                 const p = pharmacyMap[r.pharmacy_id] || {}
                 return (
                   <tr key={r.id}>
-                    <td>{i + 1}</td>
-                    <td>{p.pharmacy_code}</td>
-                    <td>{p.pharmacy_name}</td>
-                    <td>{(p.district || '').toUpperCase()}</td>
-                    <td>{dayjs(r.received_at).format('DD/MM/YYYY')}</td>
-                    <td>{r.voucher_count}</td>
-                    <td>{r.invoice_total_amount ? Number(r.invoice_total_amount).toLocaleString() : '—'}</td>
-                    <td>{r.submitted_by_name || '—'}</td>
-                    <td><span className={`status-badge status-${r.status}`}>{r.status}</span></td>
-                    <td className="actions-cell">
+                    <td data-label="No">{i + 1}</td>
+                    <td data-label="Code">{p.pharmacy_code}</td>
+                    <td data-label="Health Facility">{p.pharmacy_name}</td>
+                    <td data-label="District">{(p.district || '').toUpperCase()}</td>
+                    <td data-label="Date of Reception">{dayjs(r.received_at).format('DD/MM/YYYY')}</td>
+                    <td data-label="Vouchers">{r.voucher_count}</td>
+                    <td data-label="Amount Billed">{r.invoice_total_amount ? Number(r.invoice_total_amount).toLocaleString() : '—'}</td>
+                    <td data-label="Submitted By">{r.submitted_by_name || '—'}</td>
+                    <td data-label="Status"><span className={`status-badge status-${r.status}`}>{r.status}</span></td>
+                    <td data-label="Actions" className="actions-cell">
                       <button className="btn-link" onClick={() => openEdit(r)}>Edit</button>
                     </td>
                   </tr>

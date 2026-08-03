@@ -116,16 +116,16 @@ export default function PharmacyManager() {
 
       <input className="table-search" placeholder="Search pharmacies..." value={search} onChange={e => setSearch(e.target.value)} />
 
-      <table className="data-table">
+      <table className="data-table stack-on-mobile">
         <thead><tr><th>Code</th><th>Name</th><th>District</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
           {filtered.map(p => (
             <tr key={p.id}>
-              <td>{p.pharmacy_code}</td>
-              <td>{p.pharmacy_name}</td>
-              <td>{p.district}</td>
-              <td>{p.active ? 'Active' : 'Inactive'}</td>
-              <td>
+              <td data-label="Code">{p.pharmacy_code}</td>
+              <td data-label="Name">{p.pharmacy_name}</td>
+              <td data-label="District">{p.district}</td>
+              <td data-label="Status">{p.active ? 'Active' : 'Inactive'}</td>
+              <td data-label="Actions" className="actions-cell">
                 <button className="btn-link" onClick={() => editPharmacy(p)}>Edit</button>
                 <button className="btn-link" onClick={() => toggleActive(p)}>{p.active ? 'Deactivate' : 'Activate'}</button>
               </td>
