@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,11 +33,14 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        await db.pharmacy.upsert({
-          where: { pharmacyCode: code },
-          update: { pharmacyName: name, district },
-          create: { pharmacyCode: code, pharmacyName: name, district },
-        });
+        const { error: upsertError } = await supabase
+          .from('Pharmacy')
+          .upsert(
+            { pharmacyCode: code, pharmacyName: name, district },
+            { onConflict: 'pharmacyCode' }
+          );
+
+        if (upsertError) throw upsertError;
         created++;
       } catch (err: any) {
         errors.push(`Row error: ${err.message}`);

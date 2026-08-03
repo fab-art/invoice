@@ -1,25 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const periodId = searchParams.get('periodId');
 
-    const where: any = {};
-    if (periodId) where.periodId = periodId;
+    let query = supabase
+      .from('Submission')
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(fullName)
+      `)
+      .order('receivedAt', { ascending: true });
 
-    const submissions = await db.submission.findMany({
-      where,
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { fullName: true } },
-      },
-      orderBy: { receivedAt: 'asc' },
-    });
+    if (periodId) query = query.eq('periodId', periodId);
 
-    const period = periodId ? await db.submissionPeriod.findUnique({ where: { id: periodId } }) : null;
+    const { data: submissionsData, error: fetchError } = await query;
+    if (fetchError) throw fetchError;
+    const submissions = submissionsData ?? [];
+
+    let period: { label: string; startDate: string; endDate: string } | null = null;
+    if (periodId) {
+      const { data: periodData, error: periodError } = await supabase
+        .from('SubmissionPeriod')
+        .select('*')
+        .eq('id', periodId)
+        .maybeSingle();
+      if (periodError) throw periodError;
+      period = periodData;
+    }
 
     const { jsPDF } = await import('jspdf');
     await import('jspdf-autotable');

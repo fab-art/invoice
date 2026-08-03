@@ -1,3 +1,9 @@
+/**
+ * RSSB Pharmacy Invoice Reception - Application Entry Point
+ * 
+ * Main application shell with authentication-aware routing.
+ * Private routes protect admin-only views.
+ */
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSettings } from './lib/SettingsContext.jsx'
 import Reception from './pages/Reception.jsx'

@@ -1,13 +1,34 @@
+/**
+ * Pharmacy Search Component
+ * 
+ * Debounced search input with dropdown suggestions for selecting pharmacies.
+ * Filters by pharmacy name, code, or district.
+ */
 import { useState, useEffect, useRef } from 'react'
 
-export default function PharmacySearch({ pharmacies, onSelect, selected }) {
+interface Pharmacy {
+  id: string
+  pharmacy_name: string
+  pharmacy_code: string
+  district: string
+}
+
+interface PharmacySearchProps {
+  pharmacies: Pharmacy[]
+  onSelect: (pharmacy: Pharmacy | null) => void
+  selected: Pharmacy | null
+}
+
+export default function PharmacySearch({ pharmacies, onSelect, selected }: PharmacySearchProps) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
-  const wrapRef = useRef(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    function handleClick(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)

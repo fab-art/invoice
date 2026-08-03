@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 import { sessionOptions, SessionData } from '@/lib/session';
 import { getIronSession } from 'iron-session';
+
+const SUBMISSION_SELECT = `
+  *,
+  pharmacy:Pharmacy!pharmacyId(*),
+  period:SubmissionPeriod!periodId(*),
+  receivedBy:User!receivedById(id, fullName, role),
+  verifiedBy:User!verifiedById(id, fullName)
+`;
 
 export async function GET(req: NextRequest) {
   try {
@@ -11,34 +19,26 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('endDate');
     const periodId = searchParams.get('periodId');
 
-    const where: any = {};
+    let query = supabase
+      .from('Submission')
+      .select(SUBMISSION_SELECT)
+      .order('receivedAt', { ascending: false })
+      .limit(200);
 
     if (status && status !== 'ALL') {
-      where.status = status;
+      query = query.eq('status', status);
     }
     if (startDate && endDate) {
-      where.receivedAt = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      };
+      query = query.gte('receivedAt', new Date(startDate).toISOString()).lte('receivedAt', new Date(endDate).toISOString());
     }
     if (periodId) {
-      where.periodId = periodId;
+      query = query.eq('periodId', periodId);
     }
 
-    const submissions = await db.submission.findMany({
-      where,
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { id: true, fullName: true, role: true } },
-        verifiedBy: { select: { id: true, fullName: true } },
-      },
-      orderBy: { receivedAt: 'desc' },
-      take: 200,
-    });
+    const { data, error } = await query;
+    if (error) throw error;
 
-    return NextResponse.json(submissions);
+    return NextResponse.json(data);
   } catch (error) {
     console.error('Submissions fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch submissions' }, { status: 500 });
@@ -69,17 +69,20 @@ export async function POST(req: NextRequest) {
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-    const todayCount = await db.submission.count({
-      where: {
-        receivedAt: { gte: todayStart, lt: todayEnd },
-      },
-    });
+    const { count: todayCount, error: countError } = await supabase
+      .from('Submission')
+      .select('*', { count: 'exact', head: true })
+      .gte('receivedAt', todayStart.toISOString())
+      .lt('receivedAt', todayEnd.toISOString());
 
-    const sequence = String(todayCount + 1).padStart(5, '0');
+    if (countError) throw countError;
+
+    const sequence = String((todayCount ?? 0) + 1).padStart(5, '0');
     const receiptNumber = `RSSB-${dateStr}-${sequence}`;
 
-    const submission = await db.submission.create({
-      data: {
+    const { data: submission, error } = await supabase
+      .from('Submission')
+      .insert({
         receiptNumber,
         pharmacyId,
         periodId,
@@ -88,14 +91,17 @@ export async function POST(req: NextRequest) {
         submittedByName,
         submittedByPosition: submittedByPosition || '',
         receivedById: session.userId,
-        receivedAt: new Date(),
-      },
-      include: {
-        pharmacy: true,
-        period: true,
-        receivedBy: { select: { id: true, fullName: true, role: true } },
-      },
-    });
+        receivedAt: new Date().toISOString(),
+      })
+      .select(`
+        *,
+        pharmacy:Pharmacy!pharmacyId(*),
+        period:SubmissionPeriod!periodId(*),
+        receivedBy:User!receivedById(id, fullName, role)
+      `)
+      .single();
+
+    if (error) throw error;
 
     return NextResponse.json(submission, { status: 201 });
   } catch (error) {
